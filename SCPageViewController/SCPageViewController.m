@@ -39,6 +39,7 @@
 
 @property (nonatomic, assign) NSUInteger numberOfPages;
 @property (nonatomic, strong) NSMutableArray *pages;
+@property (nonatomic, strong) NSMutableArray *degueuedPages;
 
 @property (nonatomic, assign) NSUInteger currentPage;
 
@@ -88,6 +89,7 @@
 - (void)_commonSetup
 {
 	self.pages = [NSMutableArray array];
+    self.degueuedPages = [NSMutableArray array];
 	self.visibleControllers = [NSMutableArray array];
 	self.pagingEnabled = YES;
 	
@@ -155,10 +157,11 @@
 
 #pragma mark - Public Methods
 
-- (void)setLayouter:(id<SCPageLayouterProtocol>)layouter
+
+- (void)setLayouter:(id<SCPageLayouterProtocol> _Nonnull)layouter
 	andFocusOnIndex:(NSUInteger)pageIndex
 		   animated:(BOOL)animated
-		 completion:(void(^)())completion
+		 completion:(void(^ _Nullable)())completion
 {
 	[self setLayouter:layouter animated:animated completion:^{
 		if(completion) {
@@ -177,9 +180,9 @@
 	}
 }
 
-- (void)setLayouter:(id<SCPageLayouterProtocol>)layouter
+- (void)setLayouter:(id<SCPageLayouterProtocol> _Nonnull)layouter
 		   animated:(BOOL)animated
-		 completion:(void (^)())completion
+		 completion:(void (^ _Nullable)())completion
 {
 	self.previousLayouter = self.layouter;
 	self.layouter = layouter;
@@ -480,6 +483,10 @@
 	}];
 	
 	for(NSNumber *removedIndex in removedIndexes) {
+        UIViewController *vc = [self viewControllerForPageAtIndex:removedIndex.unsignedIntegerValue];
+        if (vc != nil) {
+            [self.degueuedPages addObject: vc];
+        }
 		[self.pages replaceObjectAtIndex:removedIndex.unsignedIntegerValue withObject:[NSNull null]];
 	}
 	
@@ -496,6 +503,18 @@
 	}
 	
 	[self _updateFramesAndTriggerAppearanceCallbacks];
+}
+
+- (UIViewController * __nullable)dequeuedViewController {
+    
+    if (self.degueuedPages.count <= 0) {
+        return nil;
+    }
+    
+    UIViewController *dequedVc = [self.degueuedPages objectAtIndex:0];
+    [self.degueuedPages removeObjectAtIndex:0];
+    
+    return dequedVc;
 }
 
 #pragma mark Appearance callbacks and framesetting
@@ -1049,7 +1068,7 @@
 
 #pragma mark - Private - Incremental Updates
 
-- (void)reloadPagesAtIndexes:(NSIndexSet *)indexes animated:(BOOL)animated completion:(void(^)())completion
+- (void)reloadPagesAtIndexes:(NSIndexSet * _Nonnull)indexes animated:(BOOL)animated completion:(void(^ _Nullable)())completion
 {
 	NSMutableArray *removedViewControllers = [NSMutableArray array];
 	
@@ -1067,6 +1086,8 @@
 			[oldViewController beginAppearanceTransition:NO animated:animated];
 		}
 		
+        [self.degueuedPages addObject: oldViewController];
+        
 		[self.pages replaceObjectAtIndex:pageIndex withObject:[NSNull null]];
 		UIViewController *newViewController = [self _createAndInsertNewPageAtIndex:pageIndex];
         
@@ -1104,7 +1125,7 @@
 	});
 }
 
-- (void)insertPagesAtIndexes:(NSIndexSet *)indexes animated:(BOOL)animated completion:(void(^)())completion
+- (void)insertPagesAtIndexes:(NSIndexSet * _Nonnull)indexes animated:(BOOL)animated completion:(void(^ _Nullable)())completion
 {
 	NSInteger oldNumberOfPages = self.numberOfPages;
 	self.numberOfPages = [self.dataSource numberOfPagesInPageViewController:self];
@@ -1213,7 +1234,7 @@
 	});
 }
 
-- (void)deletePagesAtIndexes:(NSIndexSet *)indexes animated:(BOOL)animated completion:(void(^)())completion
+- (void)deletePagesAtIndexes:(NSIndexSet * _Nonnull)indexes animated:(BOOL)animated completion:(void(^ _Nullable)())completion
 {
 	NSInteger oldNumberOfPages = self.numberOfPages;
 	self.numberOfPages = [self.dataSource numberOfPagesInPageViewController:self];
@@ -1319,7 +1340,7 @@
 	});
 }
 
-- (void)movePageAtIndex:(NSUInteger)fromIndex toIndex:(NSUInteger)toIndex animated:(BOOL)animated completion:(void(^)())completion
+- (void)movePageAtIndex:(NSUInteger)fromIndex toIndex:(NSUInteger)toIndex animated:(BOOL)animated completion:(void(^ _Nullable)())completion
 {
 	NSAssert(fromIndex < self.numberOfPages, @"Index out of bounds");
 	NSAssert(toIndex < self.numberOfPages, @"Index out of bounds");
