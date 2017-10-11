@@ -198,6 +198,8 @@
 		
 		[self _sortSubviewsByZPosition];
 		[self _tilePages];
+        
+        [self.view layoutIfNeeded];
 	};
 	
 	if(animated) {
@@ -611,6 +613,9 @@
 		}
 		
 		remainder = [self _subtractRect:intersection fromRect:remainder withEdge:edge];
+        
+        CATransform3D previousTransform = viewController.view.layer.transform;
+        [self _setAnimatableSublayerTransform:CATransform3DIdentity forViewController:viewController];
 				
 		// Finally, trigger appearance callbacks and new frame
 		if(visible && ![self.visibleControllers containsObject:viewController]) {
@@ -643,6 +648,8 @@
                                                                   pageViewController:self];
             
             [self _setAnimatableSublayerTransform:transform forViewController:viewController];
+        } else {
+            [self _setAnimatableSublayerTransform:previousTransform forViewController:viewController];
         }
     }];
 }
